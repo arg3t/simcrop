@@ -9,6 +9,7 @@ all: simcrop.cpp
 clean:
 	@echo cleaning
 	@rm -f simcrop
+	@rm -f /usr/local/bin/simcrop
 
 install: all
 	@echo installing executable file to /usr/local/bin

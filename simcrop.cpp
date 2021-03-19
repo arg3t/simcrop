@@ -205,10 +205,6 @@ int main(int argc, char** argv)
             cropped = fromImgResized(selection);
         }
         imshow(title, cropped);
-        rectangle(fromImg, calcOriginalRect(selection, geometry, fromImg.size()), Scalar(0,255,0));
-        rectangle(fromImgResized, selection, Scalar(255,0,0));
-        imshow("from", fromImg);
-        imshow("fromResize", fromImgResized);
         do{
             key = waitKey(1);
         }while(key != 113 && key != 115 && key != 98);

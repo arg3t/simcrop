@@ -222,7 +222,7 @@ int main(int argc, char** argv)
         }
     }else{
         if(saveClipboard){
-            saveImgToClipboard(cropped);
+            saveImgToClipboard(fromImg(calcOriginalRect(selection, geometry, fromImg.size())));
         }else{
             imwrite(savePath, cropped);
         }

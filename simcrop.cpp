@@ -39,10 +39,60 @@ Mat getImgFromClipboard(){
     return img;
 }
 
+void printRect(Rect r){
+    std::cout << "Rect(" << r.x << "," << r.y << "," << r.height << "," << r.width << ")\n"; 
+}
+
 void saveImgToClipboard(Mat img){
     // TODO implement a C++ implementation instead
     imwrite("/tmp/to.png", img);
     system("xclip -selection clipboard -target image/png -i /tmp/to.png");
+}
+
+int searchChar(char* str, char key){
+    for(int i = 0; i < strlen(str); i++){
+        if(str[i] == key)
+            return i;
+    }
+    return -1;
+}
+
+Rect calcOriginalRect(Rect resized, Size newSize, Size origSize){
+    int x, y, h, w;
+    double Rx, Ry;
+
+    x = resized.x;
+    y = resized.y;
+    h = resized.height;
+    w = resized.width;
+
+    Rx = origSize.width / newSize.width;
+    Ry = origSize.height / newSize.height;
+
+    Rect newRect = Rect(x*Rx, y*Ry, w*Rx, h*Ry);
+
+    return newRect;
+}
+
+Size parseGeometry(char* geometryString){
+    int dloc = searchChar(geometryString, 'x');
+    int x,y;
+    if(dloc < 1){
+        std::cout << "Incorrect geometry string!\n";
+        exit(1);
+    }
+    char xstr[dloc];
+    char ystr[strlen(geometryString) - dloc - 1];
+    for(int i = 0; i < strlen(geometryString); i++){
+        if(i < dloc)
+            xstr[i] = geometryString[i];
+        else if(i > dloc)
+            ystr[i - dloc - 1] = geometryString[i];
+    }
+
+    x = atoi(xstr);
+    y = atoi(ystr);
+    return Size(x,y);
 }
 
 void exitHelp(){
@@ -52,7 +102,8 @@ void exitHelp(){
                             "  -h, --help       Show help options\n\n"
                             "Application Options:\n"
                             "  -c, --center     Select from center\n"
-                            "  -x, --crosshair  Show crosshair\n\n"
+                            "  -x, --crosshair  Show crosshair\n"
+                            "  -g, --geometry   Image display size\n\n"
                             "From & To:\n"
                             "  -f(c) [PATH]     Image to crop, adding c fetches the image from clipboard\n"
                             "  -s(c) [PATH]     Path to save cropped, adding c saves the image to clipboard\n\n"
@@ -69,9 +120,11 @@ int main(int argc, char** argv)
     bool showCrosshair = false;
     bool selectFromCenter = false;
     Mat fromImg = Mat();
+    Mat fromImgResized = Mat();
     bool saveClipboard = false;
     char* savePath = "";
     char* title = "SimCrop";
+    Size geometry = Size();
 
     if(argc < 3){
         std::cout << "Not enough parameters!\n";
@@ -86,8 +139,10 @@ int main(int argc, char** argv)
             exitHelp();
         }else if(!(strcmp(argv[i], "-c") && strcmp(argv[i], "--center"))){
             selectFromCenter = true;
+        }else if(!(strcmp(argv[i], "-g") && strcmp(argv[i], "--geometry"))){
+            geometry = parseGeometry(argv[i+1]);
+            resize(fromImg, fromImgResized, geometry, 0, 0, INTER_LINEAR);
         }else if(!(strcmp(argv[i], "-x") && strcmp(argv[i], "--crosshair"))){
-            showCrosshair = true;
         }else if(!(strcmp(argv[i], "-t") && strcmp(argv[i], "--title"))){
             if(argc <= i+1){
                 std::cerr << "You must provide a string with -t!\n";
@@ -142,9 +197,18 @@ int main(int argc, char** argv)
     Mat cropped = Mat();
     Rect2d selection = Rect2d();
     while(key == 98){
-        selection = getSelection(fromImg, title, selectFromCenter, showCrosshair);
-        cropped = fromImg(selection);
+        if(geometry.empty()){
+            selection = getSelection(fromImg, title, selectFromCenter, showCrosshair);
+            cropped = fromImg(selection);
+        }else{
+            selection = getSelection(fromImgResized, title, selectFromCenter, showCrosshair);
+            cropped = fromImgResized(selection);
+        }
         imshow(title, cropped);
+        rectangle(fromImg, calcOriginalRect(selection, geometry, fromImg.size()), Scalar(0,255,0));
+        rectangle(fromImgResized, selection, Scalar(255,0,0));
+        imshow("from", fromImg);
+        imshow("fromResize", fromImgResized);
         do{
             key = waitKey(1);
         }while(key != 113 && key != 115 && key != 98);
@@ -154,10 +218,18 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    if(saveClipboard){
-        saveImgToClipboard(cropped);
+    if(geometry.empty()){
+        if(saveClipboard){
+            saveImgToClipboard(cropped);
+        }else{
+            imwrite(savePath, cropped);
+        }
     }else{
-        imwrite(savePath, cropped);
+        if(saveClipboard){
+            saveImgToClipboard(cropped);
+        }else{
+            imwrite(savePath, cropped);
+        }
     }
 
     return 0;
